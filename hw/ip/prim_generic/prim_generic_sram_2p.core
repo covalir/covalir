@@ -1,0 +1,51 @@
+CAPI=2:
+# Copyright 2026 CovalIR Contributors
+# Licensed under the Apache License, Version 2.0
+
+name: "covalir:prim_generic:sram_2p:0.1"
+description: "Behavioral 1R1W synchronous SRAM primitive (read-first, byte mask, registered rvalid)."
+
+filesets:
+  files_rtl:
+    files:
+      - rtl/prim_generic_sram_2p.sv
+    file_type: systemVerilogSource
+  files_dv:
+    files:
+      - dv/tb_prim_generic_sram_2p.cpp
+    file_type: cppSource
+
+targets:
+  default: &default_target
+    filesets:
+      - files_rtl
+  lint:
+    <<: *default_target
+    default_tool: verilator
+    toplevel: prim_generic_sram_2p
+    tools:
+      verilator:
+        mode: lint-only
+        verilator_options:
+          - "-Wall"
+          - "-Werror-WIDTH"
+          - "-Werror-UNUSED"
+  sim:
+    <<: *default_target
+    filesets_append:
+      - files_dv
+    default_tool: verilator
+    toplevel: prim_generic_sram_2p
+    tools:
+      verilator:
+        mode: cc
+        verilator_options:
+          - "-Wall"
+          - "-Werror-WIDTH"
+          - "-Werror-UNUSED"
+          - "-GDepth=64"
+          - "--exe"
+          - "--build"
+          - "-j"
+          - "0"
+          - "-O3"

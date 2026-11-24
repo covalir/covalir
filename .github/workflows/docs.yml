@@ -1,0 +1,53 @@
+name: Deploy Docs (GitHub Pages)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Material for MkDocs
+        run: pip install --no-cache-dir mkdocs-material
+      - name: Sync Banner & Status into Docs
+        run: |
+          mkdir -p docs/assets
+          cp assets/banner.png docs/assets/banner.png
+          python3 -c '
+          import pathlib, re
+          text = pathlib.Path("STATUS.md").read_text(encoding="utf-8")
+          text = re.sub(r"\]\(((?:hw|compiler|targets|util|docs|\.github|fusesoc\.conf)[^)]*)\)", r"](https://github.com/covalir/covalir/blob/main/\1)", text)
+          pathlib.Path("docs/status.md").write_text(text, encoding="utf-8")
+          '
+      - name: Build Documentation Site
+        run: mkdocs build --strict
+      - name: Upload Pages Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

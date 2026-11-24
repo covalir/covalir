@@ -1,0 +1,52 @@
+CAPI=2:
+# Copyright 2026 CovalIR Contributors
+# Licensed under the Apache License, Version 2.0
+
+name: "covalir:ip:mac_ternary:0.1"
+description: "Pipelined 2-bit packed ternary ({-1, 0, +1}) x INT8 zero-multiplier MAC engine."
+
+filesets:
+  files_rtl:
+    depend:
+      - "covalir:prim:fifo_sync:0.1"
+    files:
+      - rtl/mac_ternary.sv
+    file_type: systemVerilogSource
+  files_dv:
+    files:
+      - dv/tb_mac_ternary.cpp
+    file_type: cppSource
+
+targets:
+  default: &default_target
+    filesets:
+      - files_rtl
+  lint:
+    <<: *default_target
+    default_tool: verilator
+    toplevel: mac_ternary
+    tools:
+      verilator:
+        mode: lint-only
+        verilator_options:
+          - "-Wall"
+          - "-Werror-WIDTH"
+          - "-Werror-UNUSED"
+  sim:
+    <<: *default_target
+    filesets_append:
+      - files_dv
+    default_tool: verilator
+    toplevel: mac_ternary
+    tools:
+      verilator:
+        mode: cc
+        verilator_options:
+          - "-Wall"
+          - "-Werror-WIDTH"
+          - "-Werror-UNUSED"
+          - "--exe"
+          - "--build"
+          - "-j"
+          - "0"
+          - "-O3"

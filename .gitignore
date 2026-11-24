@@ -1,0 +1,64 @@
+# Build, docs & EDA outputs
+build/
+site/
+obj_dir/
+*.vcd
+*.fst
+*.jou
+*.log
+*.str
+*.asc
+*.cfg
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+*.egg-info/
+dist/
+
+# Model checkpoints, weights & datasets
+*.bin
+*.safetensors
+*.gguf
+*.pt
+*.pth
+*.onnx
+*.ckpt
+models/
+
+# FPGA bitstreams & silicon artifacts
+*.bit
+*.xclbin
+*.dcp
+*.afi
+*.gds
+
+# Local secrets, scratch & temporary files
+.env
+.env.*
+*.pem
+*.key
+scratch/
+tmp/
+*.tmp
+*.bak
+
+# Editor, IDE & local agent configs
+.vscode/
+.idea/
+.claude/
+.cursor/
+.gemini/
+.t3/
+.codex/
+.aider*
+CLAUDE.md
+AGENTS.md
+GEMINI.md
+
+# OS
+.DS_Store
+Thumbs.db

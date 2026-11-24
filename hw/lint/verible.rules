@@ -1,0 +1,22 @@
+# lowRISC / OpenTitan-inspired Verible SystemVerilog lint rules for CovalIR
+# Run via: verible-verilog-lint --rules_config=hw/lint/verible.rules hw/ip/*/rtl/*.sv
+
++always-comb
++always-comb-blocking
++always-ff-non-blocking
++case-missing-default
+-explicit-parameter-storage-type
++forbid-defparam
++forbid-negative-array-dim
++generate-label
++line-length=length:100
++module-filename
++no-tabs
++no-trailing-spaces
++packed-dimensions-range-ordering
++parameter-name-style=localparam_style:CamelCase|ALL_CAPS;parameter_style:CamelCase|ALL_CAPS
++posix-eof
++undersized-binary-literal
++unpacked-dimensions-range-ordering
+-explicit-function-lifetime
+-explicit-task-lifetime

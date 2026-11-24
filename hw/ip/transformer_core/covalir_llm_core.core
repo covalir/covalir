@@ -1,0 +1,32 @@
+CAPI=2:
+# Copyright 2026 CovalIR Contributors
+# Licensed under the Apache License, Version 2.0
+
+name: "covalir:ip:transformer_core:0.1"
+description: "End-to-end parameterized integer Llama-2 / TinyStories Transformer core."
+
+filesets:
+  files_rtl:
+    depend:
+      - "covalir:prim:fifo_sync:0.1"
+      - "covalir:ip:mac_w4a8:0.1"
+      - "covalir:ip:mac_ternary:0.1"
+    files:
+      - rtl/covalir_llm_core.sv
+    file_type: systemVerilogSource
+
+targets:
+  default: &default_target
+    filesets:
+      - files_rtl
+  lint:
+    <<: *default_target
+    default_tool: verilator
+    toplevel: covalir_llm_core
+    tools:
+      verilator:
+        mode: lint-only
+        verilator_options:
+          - "-Wall"
+          - "-Werror-WIDTH"
+          - "-Werror-UNUSED"

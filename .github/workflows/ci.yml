@@ -1,0 +1,93 @@
+name: CovalIR CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python-tests:
+    name: Python Golden Reference, Quantizer & Compiler Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run Compiler, Quantizer & Golden Unit Tests
+        run: python3 -m unittest discover -s compiler/tests -v
+
+  verilator-lint-and-dv:
+    name: Verilator Strict Lint, Guards, IP DV & End-to-End Transformer Proof
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Verilator & FuseSoC
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y verilator build-essential python3-pip
+          pip3 install --break-system-packages fusesoc
+      - name: FuseSoC Core Discovery & Lint
+        run: |
+          fusesoc --config fusesoc.conf core list
+          fusesoc --config fusesoc.conf run --target=lint covalir:prim:fifo_sync:0.1
+          fusesoc --config fusesoc.conf run --target=lint covalir:prim_generic:sram_2p:0.1
+          fusesoc --config fusesoc.conf run --target=lint covalir:ip:mac_w4a8:0.1
+          fusesoc --config fusesoc.conf run --target=lint covalir:ip:mac_ternary:0.1
+          fusesoc --config fusesoc.conf run --target=lint covalir:ip:requant_group:0.1
+          fusesoc --config fusesoc.conf run --target=lint covalir:ip:transformer_core:0.1
+      - name: Run Full Verilator Lint, Guard Suite, IP DV & End-to-End Transformer Proof
+        run: python3 util/dvsim/run_dv.py
+
+  formal-and-yosys-synth:
+    name: SymbiYosys Formal & Yosys Generic Synthesis
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install OSS CAD Suite (Yosys, SymbiYosys, Z3)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG=$(curl -sS -H "Authorization: Bearer ${GH_TOKEN}" https://api.github.com/repos/YosysHQ/oss-cad-suite-build/releases/latest | python3 -c "import sys, json; print(json.load(sys.stdin)['tag_name'])")
+          DATE=$(echo "$TAG" | tr -d '-')
+          curl -sSL "https://github.com/YosysHQ/oss-cad-suite-build/releases/download/${TAG}/oss-cad-suite-linux-x64-${DATE}.tgz" -o oss-cad-suite.tgz
+          tar -xzf oss-cad-suite.tgz
+          echo "$PWD/oss-cad-suite/bin" >> "$GITHUB_PATH"
+      - name: Run SymbiYosys Formal Proof (prim_fifo_sync)
+        run: (cd hw/ip/prim/formal && sby -f prim_fifo_sync.sby)
+      - name: Yosys Generic Standard-Cell Synthesis Check (All IPs + Compiled Core)
+        run: |
+          yosys -q -p "read_verilog -sv hw/ip/prim/rtl/prim_fifo_sync.sv; synth -top prim_fifo_sync; stat"
+          yosys -q -p "read_verilog -sv hw/ip/prim_generic/rtl/prim_generic_sram_2p.sv; synth -top prim_generic_sram_2p; stat"
+          yosys -q -p "read_verilog -sv hw/ip/prim/rtl/prim_fifo_sync.sv hw/ip/mac_w4a8/rtl/mac_w4a8.sv; synth -top mac_w4a8; stat"
+          yosys -q -p "read_verilog -sv hw/ip/prim/rtl/prim_fifo_sync.sv hw/ip/mac_ternary/rtl/mac_ternary.sv; synth -top mac_ternary; stat"
+          yosys -q -p "read_verilog -sv hw/ip/prim/rtl/prim_fifo_sync.sv hw/ip/requant_group/rtl/requant_group.sv; synth -top requant_group; stat"
+          PYTHONPATH=compiler python3 -m covalir.cli compile synthetic --quant ternary --lanes 16 --out build/ci_synth_ternary
+          yosys -q -s build/ci_synth_ternary/synth_yosys.ys
+
+  verible-style-lint:
+    name: Verible SystemVerilog Style Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Verible
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERIBLE_URL=$(curl -sS -H "Authorization: Bearer ${GH_TOKEN}" https://api.github.com/repos/chipsalliance/verible/releases/latest | python3 -c "import sys, json; assets=json.load(sys.stdin)['assets']; print([a['browser_download_url'] for a in assets if 'linux-static-x86_64.tar.gz' in a['name']][0])")
+          curl -sSL "$VERIBLE_URL" -o verible.tar.gz
+          mkdir -p verible && tar -xzf verible.tar.gz -C verible --strip-components=1
+          echo "$PWD/verible/bin" >> "$GITHUB_PATH"
+      - name: Lint All RTL Against hw/lint/verible.rules
+        run: verible-verilog-lint --rules_config=hw/lint/verible.rules hw/ip/*/rtl/*.sv

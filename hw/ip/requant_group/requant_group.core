@@ -1,0 +1,52 @@
+CAPI=2:
+# Copyright 2026 CovalIR Contributors
+# Licensed under the Apache License, Version 2.0
+
+name: "covalir:ip:requant_group:0.1"
+description: "Pipelined fixed-point signed INT32 -> signed INT8 per-group requantization engine."
+
+filesets:
+  files_rtl:
+    depend:
+      - "covalir:prim:fifo_sync:0.1"
+    files:
+      - rtl/requant_group.sv
+    file_type: systemVerilogSource
+  files_dv:
+    files:
+      - dv/tb_requant_group.cpp
+    file_type: cppSource
+
+targets:
+  default: &default_target
+    filesets:
+      - files_rtl
+  lint:
+    <<: *default_target
+    default_tool: verilator
+    toplevel: requant_group
+    tools:
+      verilator:
+        mode: lint-only
+        verilator_options:
+          - "-Wall"
+          - "-Werror-WIDTH"
+          - "-Werror-UNUSED"
+  sim:
+    <<: *default_target
+    filesets_append:
+      - files_dv
+    default_tool: verilator
+    toplevel: requant_group
+    tools:
+      verilator:
+        mode: cc
+        verilator_options:
+          - "-Wall"
+          - "-Werror-WIDTH"
+          - "-Werror-UNUSED"
+          - "--exe"
+          - "--build"
+          - "-j"
+          - "0"
+          - "-O3"
